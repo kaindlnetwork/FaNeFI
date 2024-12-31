@@ -1,8 +1,8 @@
 import os
+import logging
 import requests
 import json
 import csv
-import logging
 
 # Logging-Konfiguration: Logs werden sowohl in die Konsole als auch in eine Datei geschrieben
 logging.basicConfig(
