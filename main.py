@@ -1,3 +1,10 @@
+"""
+Dieses Skript lädt JSON-Daten von einer URL herunter, speichert sie lokal,
+vergleicht sie mit vorhandenen CSV-Daten und aktualisiert die CSV-Datei,
+falls Änderungen erkannt werden. Es protokolliert den Prozess und meldet
+Änderungen oder Fehler.
+"""
+
 import os
 import logging
 import csv
@@ -20,7 +27,7 @@ logging.basicConfig(
     ]
 )
 
-# URL der JSON-Datei
+# Konfigurationskonstanten
 URL = "https://nef05mon.karte.neanderfunk.de/data/nodes.json"
 CSV_FILE = "nodes.csv"
 JSON_FILE = "nodes.json"
@@ -84,19 +91,19 @@ try:
 
             # Loggen der Node-Daten (direkte Ausgabe)
             print(
-                f"Node hinzugefügt/aktualisiert: Hostname={hostname}, Hardware={hardware_model}, "
+                f"Node aktualisiert: Hostname={hostname}, Hardware={hardware_model}, "
                 f"Node-ID={node_id}, Kontakt={contact}, IPv6={ipv6_address}"
             )
             logging.info(
-                "Node hinzugefügt/aktualisiert: Hostname=%s, Hardware=%s, Node-ID=%s, Kontakt=%s, IPv6=%s",
+                "Node aktualisiert: Hostname=%s, Hardware=%s, Node-ID=%s, Kontakt=%s, IPv6=%s",
                 hostname, hardware_model, node_id, contact, ipv6_address
             )
 
     logging.info("Daten wurden erfolgreich in die CSV-Datei %s exportiert.", CSV_FILE)
 
-except requests.exceptions.RequestException as e:
-    logging.error("Fehler beim Herunterladen der JSON-Datei: %s", e)
-except (json.JSONDecodeError, KeyError) as e:
-    logging.error("Fehler beim Verarbeiten der JSON-Daten: %s", e)
-except Exception as e:  # Allgemeine Fehlerbehandlung
-    logging.error("Ein unerwarteter Fehler ist aufgetreten: %s", e)
+except requests.exceptions.RequestException as error:
+    logging.error("Fehler beim Herunterladen der JSON-Datei: %s", error)
+except (json.JSONDecodeError, KeyError) as error:
+    logging.error("Fehler beim Verarbeiten der JSON-Daten: %s", error)
+except (OSError, ValueError) as error:
+    logging.error("Datei- oder Wertfehler aufgetreten: %s", error)
