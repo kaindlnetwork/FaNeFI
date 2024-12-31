@@ -55,7 +55,7 @@ try:
             contact = nodeinfo.get('owner', {}).get('contact', 'N/A')
             ipv6_addresses = nodeinfo.get('network', {}).get('addresses', [])
             ipv6_address = ipv6_addresses[0] if ipv6_addresses else 'N/A'
-            
+
             # Änderungen prüfen
             old_data = existing_nodes.get(node_id, {})
             if old_data != {
