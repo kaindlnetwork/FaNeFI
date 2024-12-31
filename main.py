@@ -1,109 +1,90 @@
-"""
-Dieses Skript lädt JSON-Daten von einer URL herunter, speichert sie lokal,
-vergleicht sie mit vorhandenen CSV-Daten und aktualisiert die CSV-Datei,
-falls Änderungen erkannt werden. Es protokolliert den Prozess und meldet
-Änderungen oder Fehler.
-"""
-
+import json
+import csv
 import os
 import logging
-import csv
-import json
+from datetime import datetime
 
-try:
+# Konfiguration des Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# URLs und Dateinamen
+JSON_URL = "https://nef05mon.karte.neanderfunk.de/data/nodes.json"
+FQDN = "nef05mon"
+JSON_FILE = f"{FQDN}-nodes.json"
+CSV_FILE = f"{FQDN}-nodes.csv"
+
+def download_json(url, json_file):
+    """Lädt die JSON-Datei herunter und speichert sie lokal."""
     import requests
-except ImportError as exc:
-    raise ImportError(
-        "Das Modul 'requests' ist nicht installiert. Bitte führe 'pip install requests' aus."
-    ) from exc
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(json_file, 'w') as file:
+            json.dump(response.json(), file, indent=4)
+        logging.info(f"JSON-Datei erfolgreich heruntergeladen: {json_file}")
+    else:
+        logging.error(f"Fehler beim Herunterladen der JSON-Datei: {response.status_code}")
 
-# Logging-Konfiguration: Logs werden sowohl in die Konsole als auch in eine Datei geschrieben
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('nodes_export.log'),
-        logging.StreamHandler()  # Ausgabe in die Konsole
-    ]
-)
+def load_existing_csv(csv_file):
+    """Lädt bestehende CSV-Daten, falls vorhanden."""
+    if not os.path.exists(csv_file):
+        return {}
+    with open(csv_file, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        return {row['node_id']: row for row in reader}
 
-# Konfigurationskonstanten
-URL = "https://nef05mon.karte.neanderfunk.de/data/nodes.json"
-CSV_FILE = "nodes.csv"
-JSON_FILE = "nodes.json"
+def extract_node_data(node):
+    """Extrahiert relevante Daten aus einem Node."""
+    nodeinfo = node.get('nodeinfo', {})
+    addresses = nodeinfo.get('network', {}).get('addresses', [])
+    ipv6 = next((addr for addr in addresses if ':' in addr), 'Keine IPv6-Adresse')
+    return {
+        'hostname': nodeinfo.get('hostname', 'Unbekannt'),
+        'hardware_model': nodeinfo.get('hardware', {}).get('model', 'Unbekannt'),
+        'node_id': nodeinfo.get('node_id', 'Unbekannt'),
+        'contact': nodeinfo.get('owner', {}).get('contact', 'Unbekannt'),
+        'ipv6': ipv6
+    }
 
-try:
-    # JSON-Datei herunterladen
-    response = requests.get(URL, timeout=10)
-    response.raise_for_status()
-    data = response.json()
-    logging.info("JSON-Daten erfolgreich heruntergeladen.")
-
-    # JSON-Datei speichern (immer überschreiben)
-    with open(JSON_FILE, 'w', encoding='utf-8') as jsonfile:
-        json.dump(data, jsonfile, indent=4)
-    logging.info("JSON-Daten erfolgreich in %s gespeichert.", JSON_FILE)
-
-    # CSV-Vergleich vorbereiten
-    existing_nodes = {}
-    if os.path.exists(CSV_FILE):
-        with open(CSV_FILE, mode='r', encoding='utf-8') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                existing_nodes[row['node_id']] = row
-        logging.info("Vorhandene CSV-Daten geladen.")
-
-    # CSV-Datei erstellen und schreiben
-    with open(CSV_FILE, mode='w', newline='', encoding='utf-8') as csvfile:
-        fieldnames = ['hostname', 'hardware_model', 'node_id', 'contact', 'ipv6_address']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+def save_to_csv(nodes, csv_file):
+    """Speichert Node-Daten in eine CSV-Datei."""
+    with open(csv_file, mode='w', newline='') as file:
+        writer = csv.DictWriter(file, fieldnames=['hostname', 'hardware_model', 'node_id', 'contact', 'ipv6'])
         writer.writeheader()
+        for node in nodes:
+            writer.writerow(node)
+    logging.info(f"CSV-Datei erfolgreich gespeichert: {csv_file}")
 
-        # Durch die Nodes iterieren und relevante Daten extrahieren
-        for node in data.get('nodes', []):
-            nodeinfo = node.get('nodeinfo', {})
-            hostname = nodeinfo.get('hostname', 'N/A')
-            hardware_model = nodeinfo.get('hardware', {}).get('model', 'N/A')
-            node_id = nodeinfo.get('node_id', 'N/A')
-            contact = nodeinfo.get('owner', {}).get('contact', 'N/A')
-            ipv6_addresses = nodeinfo.get('network', {}).get('addresses', [])
-            ipv6_address = ipv6_addresses[0] if ipv6_addresses else 'N/A'
+def process_nodes(json_file, csv_file):
+    """Verarbeitet die Nodes und unterscheidet zwischen neu, aktualisiert und unverändert."""
+    with open(json_file) as file:
+        data = json.load(file)
+    
+    existing_nodes = load_existing_csv(csv_file)
+    new_nodes = []
+    updated_nodes = []
+    unchanged_nodes = []
+    
+    for node in data.get('nodes', []):
+        node_data = extract_node_data(node)
+        node_id = node_data['node_id']
+        
+        if node_id not in existing_nodes:
+            logging.info(f"Neue Node hinzugefügt: {node_data}")
+            new_nodes.append(node_data)
+        else:
+            old_data = existing_nodes[node_id]
+            if node_data != old_data:
+                logging.info(f"Node aktualisiert: Alt: {old_data} -> Neu: {node_data}")
+                updated_nodes.append(node_data)
+            else:
+                logging.info(f"Node unverändert: {node_data}")
+                unchanged_nodes.append(node_data)
+    
+    save_to_csv(new_nodes + updated_nodes + unchanged_nodes, csv_file)
 
-            # Änderungen prüfen
-            old_data = existing_nodes.get(node_id, {})
-            if old_data != {
-                'hostname': hostname,
-                'hardware_model': hardware_model,
-                'node_id': node_id,
-                'contact': contact,
-                'ipv6_address': ipv6_address
-            }:
-                logging.info("Änderung erkannt für Node-ID %s", node_id)
+def main():
+    download_json(JSON_URL, JSON_FILE)
+    process_nodes(JSON_FILE, CSV_FILE)
 
-            # In CSV schreiben
-            writer.writerow({
-                'hostname': hostname,
-                'hardware_model': hardware_model,
-                'node_id': node_id,
-                'contact': contact,
-                'ipv6_address': ipv6_address
-            })
-
-            # Loggen der Node-Daten (direkte Ausgabe)
-            print(
-                f"Node aktualisiert: Hostname={hostname}, Hardware={hardware_model}, "
-                f"Node-ID={node_id}, Kontakt={contact}, IPv6={ipv6_address}"
-            )
-            logging.info(
-                "Node aktualisiert: Hostname=%s, Hardware=%s, Node-ID=%s, Kontakt=%s, IPv6=%s",
-                hostname, hardware_model, node_id, contact, ipv6_address
-            )
-
-    logging.info("Daten wurden erfolgreich in die CSV-Datei %s exportiert.", CSV_FILE)
-
-except requests.exceptions.RequestException as error:
-    logging.error("Fehler beim Herunterladen der JSON-Datei: %s", error)
-except (json.JSONDecodeError, KeyError) as error:
-    logging.error("Fehler beim Verarbeiten der JSON-Daten: %s", error)
-except (OSError, ValueError) as error:
-    logging.error("Datei- oder Wertfehler aufgetreten: %s", error)
+if __name__ == '__main__':
+    main()
