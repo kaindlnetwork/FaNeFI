@@ -1,4 +1,9 @@
-import os, logging, csv, json
+"""Script zum Herunterladen und Verarbeiten von Node-Daten als JSON und Export in CSV."""
+
+import os
+import logging
+import csv
+import json
 import requests
 
 # Logging-Konfiguration: Logs werden sowohl in die Konsole als auch in eine Datei geschrieben
@@ -7,7 +12,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('nodes_export.log'),
-        logging.StreamHandler()  # Ausgabe in die Konsole
+        logging.StreamHandler()
     ]
 )
 
@@ -26,7 +31,7 @@ try:
     # JSON-Datei speichern (immer überschreiben)
     with open(JSON_FILE, 'w', encoding='utf-8') as jsonfile:
         json.dump(data, jsonfile, indent=4)
-    logging.info(f"JSON-Daten erfolgreich in {JSON_FILE} gespeichert.")
+    logging.info("JSON-Daten erfolgreich in %s gespeichert.", JSON_FILE)
 
     # CSV-Vergleich vorbereiten
     existing_nodes = {}
@@ -62,7 +67,7 @@ try:
                 'contact': contact,
                 'ipv6_address': ipv6_address
             }:
-                logging.info(f"Änderung erkannt für Node-ID {node_id}")
+                logging.info("Änderung erkannt für Node-ID %s", node_id)
 
             # In CSV schreiben
             writer.writerow({
@@ -72,18 +77,18 @@ try:
                 'contact': contact,
                 'ipv6_address': ipv6_address
             })
-            
+
             # Loggen der Node-Daten (direkte Ausgabe)
             log_message = (f"Node hinzugefügt/aktualisiert: Hostname={hostname}, Hardware={hardware_model}, "
                            f"Node-ID={node_id}, Kontakt={contact}, IPv6={ipv6_address}")
-            print(log_message)  # Direkte Ausgabe in die Konsole
+            print(log_message)
             logging.info(log_message)
 
-    logging.info(f"Daten wurden erfolgreich in die CSV-Datei {CSV_FILE} exportiert.")
+    logging.info("Daten wurden erfolgreich in die CSV-Datei %s exportiert.", CSV_FILE)
 
 except requests.exceptions.RequestException as e:
-    logging.error(f"Fehler beim Herunterladen der JSON-Datei: {e}")
+    logging.error("Fehler beim Herunterladen der JSON-Datei: %s", e)
 except (json.JSONDecodeError, KeyError) as e:
-    logging.error(f"Fehler beim Verarbeiten der JSON-Daten: {e}")
-except Exception as e:
-    logging.error(f"Ein unerwarteter Fehler ist aufgetreten: {e}")
+    logging.error("Fehler beim Verarbeiten der JSON-Daten: %s", e)
+except Exception as e:  # Verwende eine spezifischere Exception, falls möglich
+    logging.error("Ein unerwarteter Fehler ist aufgetreten: %s", e)
