@@ -66,7 +66,7 @@ try:
                 'ipv6_address': ipv6_address
             }:
                 logging.info(f"Änderung erkannt für Node-ID {node_id}")
-            
+
             # In CSV schreiben
             writer.writerow({
                 'hostname': hostname,
