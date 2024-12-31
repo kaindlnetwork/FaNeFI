@@ -1,5 +1,3 @@
-"""Script zum Herunterladen und Verarbeiten von Node-Daten als JSON und Export in CSV."""
-
 import os
 import logging
 import csv
@@ -18,7 +16,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('nodes_export.log'),
-        logging.StreamHandler()
+        logging.StreamHandler()  # Ausgabe in die Konsole
     ]
 )
 
@@ -29,7 +27,7 @@ JSON_FILE = "nodes.json"
 
 try:
     # JSON-Datei herunterladen
-    response = requests.get(URL)
+    response = requests.get(URL, timeout=10)
     response.raise_for_status()
     data = response.json()
     logging.info("JSON-Daten erfolgreich heruntergeladen.")
@@ -85,12 +83,14 @@ try:
             })
 
             # Loggen der Node-Daten (direkte Ausgabe)
-            log_message = (
+            print(
                 f"Node hinzugefügt/aktualisiert: Hostname={hostname}, Hardware={hardware_model}, "
                 f"Node-ID={node_id}, Kontakt={contact}, IPv6={ipv6_address}"
             )
-            print(log_message)
-            logging.info(log_message)
+            logging.info(
+                "Node hinzugefügt/aktualisiert: Hostname=%s, Hardware=%s, Node-ID=%s, Kontakt=%s, IPv6=%s",
+                hostname, hardware_model, node_id, contact, ipv6_address
+            )
 
     logging.info("Daten wurden erfolgreich in die CSV-Datei %s exportiert.", CSV_FILE)
 
@@ -98,8 +98,5 @@ except requests.exceptions.RequestException as e:
     logging.error("Fehler beim Herunterladen der JSON-Datei: %s", e)
 except (json.JSONDecodeError, KeyError) as e:
     logging.error("Fehler beim Verarbeiten der JSON-Daten: %s", e)
-except (OSError, IOError) as e:
-    logging.error("Dateifehler: %s", e)
-except Exception as unexpected_error:
-    logging.error("Ein unerwarteter Fehler ist aufgetreten: %s", unexpected_error)
-    raise
+except Exception as e:  # Allgemeine Fehlerbehandlung
+    logging.error("Ein unerwarteter Fehler ist aufgetreten: %s", e)
