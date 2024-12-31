@@ -4,7 +4,11 @@ import os
 import logging
 import csv
 import json
-import requests
+
+try:
+    import requests
+except ImportError:
+    raise ImportError("Das Modul 'requests' ist nicht installiert. Bitte führe 'pip install requests' aus.")
 
 # Logging-Konfiguration: Logs werden sowohl in die Konsole als auch in eine Datei geschrieben
 logging.basicConfig(
@@ -79,10 +83,12 @@ try:
             })
 
             # Loggen der Node-Daten (direkte Ausgabe)
-            log_message = (f"Node hinzugefügt/aktualisiert: Hostname={hostname}, Hardware={hardware_model}, "
-                           f"Node-ID={node_id}, Kontakt={contact}, IPv6={ipv6_address}")
-            print(log_message)
-            logging.info(log_message)
+            LOG_MESSAGE = (
+                f"Node hinzugefügt/aktualisiert: Hostname={hostname}, Hardware={hardware_model}, "
+                f"Node-ID={node_id}, Kontakt={contact}, IPv6={ipv6_address}"
+            )
+            print(LOG_MESSAGE)
+            logging.info(LOG_MESSAGE)
 
     logging.info("Daten wurden erfolgreich in die CSV-Datei %s exportiert.", CSV_FILE)
 
@@ -90,5 +96,7 @@ except requests.exceptions.RequestException as e:
     logging.error("Fehler beim Herunterladen der JSON-Datei: %s", e)
 except (json.JSONDecodeError, KeyError) as e:
     logging.error("Fehler beim Verarbeiten der JSON-Daten: %s", e)
-except Exception as e:  # Verwende eine spezifischere Exception, falls möglich
+except (OSError, IOError) as e:
+    logging.error("Dateifehler: %s", e)
+except Exception as e:  # Sollte hier eine spezifische Exception auftreten, ergänze sie.
     logging.error("Ein unerwarteter Fehler ist aufgetreten: %s", e)
