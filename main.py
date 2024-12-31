@@ -45,7 +45,7 @@ try:
         fieldnames = ['hostname', 'hardware_model', 'node_id', 'contact', 'ipv6_address']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
-        
+
         # Durch die Nodes iterieren und relevante Daten extrahieren
         for node in data.get('nodes', []):
             nodeinfo = node.get('nodeinfo', {})
