@@ -7,11 +7,18 @@ from datetime import datetime
 # Konfiguration des Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# URLs und Dateinamen
-JSON_URL = "https://nef05mon.karte.neanderfunk.de/data/nodes.json"
-FQDN = "nef05mon"
-JSON_FILE = f"{FQDN}-nodes.json"
-CSV_FILE = f"{FQDN}-nodes.csv"
+# Dateinamen für die Quellen und Ergebnisse
+NODE_URLS_FILE = "nodeurl.txt"
+BASE_JSON_FILE = "nodes-{source}.json"
+BASE_CSV_FILE = "nodes-{source}.csv"
+
+def read_node_urls(file):
+    """Liest die URLs aus der Datei nodeurl.txt."""
+    if not os.path.exists(file):
+        logging.error(f"Datei {file} nicht gefunden!")
+        return []
+    with open(file) as f:
+        return [line.strip() for line in f if line.strip()]
 
 def download_json(url, json_file):
     """Lädt die JSON-Datei herunter und speichert sie lokal."""
@@ -83,8 +90,18 @@ def process_nodes(json_file, csv_file):
     save_to_csv(new_nodes + updated_nodes + unchanged_nodes, csv_file)
 
 def main():
-    download_json(JSON_URL, JSON_FILE)
-    process_nodes(JSON_FILE, CSV_FILE)
+    urls = read_node_urls(NODE_URLS_FILE)
+    if not urls:
+        logging.error("Keine URLs gefunden!")
+        return
+    
+    for idx, url in enumerate(urls, start=1):
+        source = f"source{idx}"
+        json_file = BASE_JSON_FILE.format(source=source)
+        csv_file = BASE_CSV_FILE.format(source=source)
+        
+        download_json(url, json_file)
+        process_nodes(json_file, csv_file)
 
 if __name__ == '__main__':
     main()
